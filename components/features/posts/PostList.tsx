@@ -6,6 +6,10 @@ interface Post {
   content: string
   slug?: string
   createdAt?: string
+  category?: {
+    id: string
+    name: string
+  } | null
 }
 
 interface PostListProps {

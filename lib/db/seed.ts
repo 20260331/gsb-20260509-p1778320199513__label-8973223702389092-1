@@ -21,6 +21,23 @@ async function main() {
 
   console.log('Created admin user:', adminUser.email)
 
+  const categories = [
+    { name: 'Technology' },
+    { name: 'Tutorial' },
+    { name: 'News' },
+  ]
+
+  const categoryRecords: Record<string, { id: string }> = {}
+  for (const cat of categories) {
+    const record = await prisma.category.upsert({
+      where: { name: cat.name },
+      update: {},
+      create: { name: cat.name },
+    })
+    categoryRecords[cat.name] = record
+    console.log('Created category:', cat.name)
+  }
+
   // Create sample posts
   const posts = [
     {
@@ -28,18 +45,21 @@ async function main() {
       content: 'This is the first post on our blog. Welcome to our community!',
       slug: 'welcome-to-the-blog',
       published: true,
+      categoryName: 'News',
     },
     {
       title: 'Getting Started with Next.js',
       content: 'Next.js is a powerful React framework that enables server-side rendering and static site generation.',
       slug: 'getting-started-with-nextjs',
       published: true,
+      categoryName: 'Tutorial',
     },
     {
       title: 'Understanding Prisma ORM',
       content: 'Prisma is a modern database toolkit that makes it easy to work with databases in Node.js and TypeScript.',
       slug: 'understanding-prisma-orm',
       published: false,
+      categoryName: 'Technology',
     },
   ]
 
@@ -48,8 +68,12 @@ async function main() {
       where: { slug: post.slug },
       update: {},
       create: {
-        ...post,
+        title: post.title,
+        content: post.content,
+        slug: post.slug,
+        published: post.published,
         authorId: adminUser.id,
+        categoryId: categoryRecords[post.categoryName]?.id || null,
       },
     })
     console.log('Created post:', createdPost.title)
