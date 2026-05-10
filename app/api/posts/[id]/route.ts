@@ -7,6 +7,7 @@ const updatePostSchema = z.object({
   content: z.string().min(1).optional(),
   slug: z.string().min(1).optional(),
   published: z.boolean().optional(),
+  categoryId: z.union([z.string(), z.null()]).optional().transform((val) => (val === '' ? null : val)),
 })
 
 // GET /api/posts/[id] - Get a single post
@@ -25,6 +26,13 @@ export async function GET(
             id: true,
             name: true,
             email: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
           },
         },
       },
@@ -90,16 +98,45 @@ export async function PUT(
       }
     }
 
+    // If categoryId is provided and not null, verify it exists
+    if (result.data.categoryId !== undefined && result.data.categoryId !== null) {
+      const category = await prisma.category.findUnique({
+        where: { id: result.data.categoryId },
+      })
+      if (!category) {
+        return NextResponse.json(
+          { error: 'Category not found' },
+          { status: 404 }
+        )
+      }
+    }
+
+    // Prepare update data
+    const updateData: any = { ...result.data }
+    // If categoryId is explicitly set (including null), keep it; if undefined, don't update
+    if (result.data.categoryId === undefined) {
+      delete updateData.categoryId
+    } else {
+      updateData.categoryId = result.data.categoryId ?? null
+    }
+
     // Update post
     const post = await prisma.post.update({
       where: { id },
-      data: result.data,
+      data: updateData,
       include: {
         author: {
           select: {
             id: true,
             name: true,
             email: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
           },
         },
       },
