@@ -1,3 +1,16 @@
+export interface Category {
+  id: string
+  name: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface CategoryWithCount extends Category {
+  _count: {
+    posts: number
+  }
+}
+
 export interface Post {
   id: string
   title: string
@@ -5,6 +18,7 @@ export interface Post {
   slug: string
   published: boolean
   authorId: string
+  categoryId: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -14,6 +28,7 @@ export interface CreatePostInput {
   content: string
   slug?: string
   published?: boolean
+  categoryId?: string | null
 }
 
 export interface UpdatePostInput {
@@ -21,6 +36,7 @@ export interface UpdatePostInput {
   content?: string
   slug?: string
   published?: boolean
+  categoryId?: string | null
 }
 
 export interface PostWithAuthor extends Post {
@@ -29,4 +45,8 @@ export interface PostWithAuthor extends Post {
     name: string | null
     email: string
   }
+}
+
+export interface PostWithAuthorAndCategory extends PostWithAuthor {
+  category: Category | null
 }

@@ -8,6 +8,7 @@ const createPostSchema = z.object({
   slug: z.string().min(1, 'Slug is required'),
   authorId: z.string().min(1, 'Author ID is required'),
   published: z.boolean().optional().default(false),
+  categoryId: z.string().nullable().optional(),
 })
 
 // GET /api/posts - Get all posts
@@ -15,9 +16,13 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const published = searchParams.get('published')
+    const categoryId = searchParams.get('categoryId')
 
     const posts = await prisma.post.findMany({
-      where: published !== null ? { published: published === 'true' } : undefined,
+      where: {
+        ...(published !== null ? { published: published === 'true' } : {}),
+        ...(categoryId ? { categoryId } : {}),
+      },
       include: {
         author: {
           select: {
@@ -26,6 +31,7 @@ export async function GET(request: NextRequest) {
             email: true,
           },
         },
+        category: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -56,7 +62,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { title, content, slug, authorId, published } = result.data
+    const { title, content, slug, authorId, published, categoryId } = result.data
 
     // Check if slug already exists
     const existingPost = await prisma.post.findUnique({
@@ -78,6 +84,7 @@ export async function POST(request: NextRequest) {
         slug,
         published,
         authorId,
+        categoryId: categoryId || null,
       },
       include: {
         author: {
@@ -87,6 +94,7 @@ export async function POST(request: NextRequest) {
             email: true,
           },
         },
+        category: true,
       },
     })
 

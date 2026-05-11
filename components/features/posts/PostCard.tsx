@@ -7,6 +7,10 @@ interface Post {
   content: string
   slug?: string
   createdAt?: string
+  category?: {
+    id: string
+    name: string
+  } | null
 }
 
 interface PostCardProps {
@@ -19,9 +23,16 @@ export default function PostCard({ post }: PostCardProps) {
   return (
     <Card className="p-6 hover:shadow-lg transition">
       <Link href={`/blog/${slug}`}>
-        <h2 className="text-xl font-semibold mb-2 hover:text-blue-500 transition">
-          {post.title}
-        </h2>
+        <div className="flex items-center gap-2 mb-2">
+          <h2 className="text-xl font-semibold hover:text-blue-500 transition">
+            {post.title}
+          </h2>
+          {post.category && (
+            <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">
+              {post.category.name}
+            </span>
+          )}
+        </div>
       </Link>
       <p className="text-gray-600 line-clamp-3">{post.content}</p>
       {post.createdAt && (
