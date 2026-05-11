@@ -7,6 +7,7 @@ const updatePostSchema = z.object({
   content: z.string().min(1).optional(),
   slug: z.string().min(1).optional(),
   published: z.boolean().optional(),
+  categoryId: z.string().optional().nullable(),
 })
 
 // GET /api/posts/[id] - Get a single post
@@ -27,6 +28,7 @@ export async function GET(
             email: true,
           },
         },
+        category: true,
       },
     })
 
