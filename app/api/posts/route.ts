@@ -8,6 +8,7 @@ const createPostSchema = z.object({
   slug: z.string().min(1, 'Slug is required'),
   authorId: z.string().min(1, 'Author ID is required'),
   published: z.boolean().optional().default(false),
+  categoryId: z.union([z.string(), z.null()]).optional().transform((val) => (val === '' ? null : val)),
 })
 
 // GET /api/posts - Get all posts
@@ -15,15 +16,26 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const published = searchParams.get('published')
+    const categoryId = searchParams.get('categoryId')
 
     const posts = await prisma.post.findMany({
-      where: published !== null ? { published: published === 'true' } : undefined,
+      where: {
+        ...(published !== null ? { published: published === 'true' } : {}),
+        ...(categoryId !== null ? { categoryId: categoryId || null } : {}),
+      },
       include: {
         author: {
           select: {
             id: true,
             name: true,
             email: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
           },
         },
       },
@@ -56,7 +68,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { title, content, slug, authorId, published } = result.data
+    const { title, content, slug, authorId, published, categoryId } = result.data
 
     // Check if slug already exists
     const existingPost = await prisma.post.findUnique({
@@ -70,6 +82,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // If categoryId is provided and not null, verify it exists
+    if (categoryId !== null && categoryId !== undefined) {
+      const category = await prisma.category.findUnique({
+        where: { id: categoryId },
+      })
+      if (!category) {
+        return NextResponse.json(
+          { error: 'Category not found' },
+          { status: 404 }
+        )
+      }
+    }
+
     // Create post
     const post = await prisma.post.create({
       data: {
@@ -78,6 +103,7 @@ export async function POST(request: NextRequest) {
         slug,
         published,
         authorId,
+        categoryId: categoryId ?? null,
       },
       include: {
         author: {
@@ -85,6 +111,13 @@ export async function POST(request: NextRequest) {
             id: true,
             name: true,
             email: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
           },
         },
       },

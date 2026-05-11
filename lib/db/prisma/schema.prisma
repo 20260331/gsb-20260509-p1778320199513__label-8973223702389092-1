@@ -20,14 +20,25 @@ model User {
   updatedAt DateTime @updatedAt
 }
 
-model Post {
+model Category {
   id        String   @id @default(cuid())
-  title     String
-  content   String
+  name      String   @unique
   slug      String   @unique
-  published Boolean  @default(false)
-  author    User     @relation(fields: [authorId], references: [id])
-  authorId  String
+  posts     Post[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Post {
+  id          String    @id @default(cuid())
+  title       String
+  content     String
+  slug        String    @unique
+  published   Boolean   @default(false)
+  author      User      @relation(fields: [authorId], references: [id])
+  authorId    String
+  category    Category? @relation(fields: [categoryId], references: [id])
+  categoryId  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
