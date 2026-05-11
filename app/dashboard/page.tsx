@@ -2,7 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useForm } from 'react-hook-form'
 import { useAuth } from '@/components/providers/AuthProvider'
+
+interface Category {
+  id: string
+  name: string
+  slug: string
+}
 
 interface Post {
   id: string
@@ -11,23 +18,50 @@ interface Post {
   slug: string
   published: boolean
   createdAt: string
+  category?: {
+    id: string
+    name: string
+    slug: string
+  } | null
+}
+
+interface FormData {
+  title: string
+  content: string
+  slug: string
+  published: boolean
+  categoryId: string | null
 }
 
 export default function DashboardPage() {
   const { user, isLoading: authLoading } = useAuth()
   const router = useRouter()
   const [posts, setPosts] = useState<Post[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingPost, setEditingPost] = useState<Post | null>(null)
-  const [formData, setFormData] = useState({
-    title: '',
-    content: '',
-    slug: '',
-    published: false,
-  })
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<FormData>({
+    defaultValues: {
+      title: '',
+      content: '',
+      slug: '',
+      published: false,
+      categoryId: null,
+    },
+  })
+
+  const watchTitle = watch('title')
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -38,8 +72,19 @@ export default function DashboardPage() {
   useEffect(() => {
     if (user) {
       fetchPosts()
+      fetchCategories()
     }
   }, [user])
+
+  useEffect(() => {
+    if (!editingPost && watchTitle) {
+      const generatedSlug = watchTitle
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '')
+      setValue('slug', generatedSlug)
+    }
+  }, [watchTitle, editingPost, setValue])
 
   const fetchPosts = async () => {
     try {
@@ -53,8 +98,17 @@ export default function DashboardPage() {
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/categories')
+      const data = await res.json()
+      setCategories(data)
+    } catch {
+      console.error('Failed to fetch categories')
+    }
+  }
+
+  const onSubmit = async (data: FormData) => {
     setError('')
     setSaving(true)
 
@@ -66,20 +120,21 @@ export default function DashboardPage() {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formData,
+          ...data,
+          categoryId: data.categoryId || null,
           authorId: user?.id,
         }),
       })
 
-      const data = await res.json()
+      const resData = await res.json()
 
       if (!res.ok) {
-        setError(data.error || 'Failed to save post')
+        setError(resData.error || 'Failed to save post')
         return
       }
 
       await fetchPosts()
-      resetForm()
+      handleCloseForm()
     } catch {
       setError('Network error')
     } finally {
@@ -89,11 +144,12 @@ export default function DashboardPage() {
 
   const handleEdit = (post: Post) => {
     setEditingPost(post)
-    setFormData({
+    reset({
       title: post.title,
       content: post.content,
       slug: post.slug,
       published: post.published,
+      categoryId: post.category?.id || null,
     })
     setShowForm(true)
   }
@@ -111,18 +167,11 @@ export default function DashboardPage() {
     }
   }
 
-  const resetForm = () => {
+  const handleCloseForm = () => {
     setShowForm(false)
     setEditingPost(null)
-    setFormData({ title: '', content: '', slug: '', published: false })
+    reset()
     setError('')
-  }
-
-  const generateSlug = (title: string) => {
-    return title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '')
   }
 
   if (authLoading || !user) {
@@ -145,7 +194,6 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {/* Post Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -159,52 +207,63 @@ export default function DashboardPage() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Title</label>
                 <input
                   type="text"
-                  value={formData.title}
-                  onChange={(e) => {
-                    setFormData({
-                      ...formData,
-                      title: e.target.value,
-                      slug: editingPost ? formData.slug : generateSlug(e.target.value),
-                    })
-                  }}
+                  {...register('title', { required: 'Title is required' })}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  required
                 />
+                {errors.title && (
+                  <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">Slug</label>
                 <input
                   type="text"
-                  value={formData.slug}
-                  onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                  {...register('slug', { required: 'Slug is required' })}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  required
                 />
+                {errors.slug && (
+                  <p className="mt-1 text-sm text-red-600">{errors.slug.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Category</label>
+                <select
+                  {...register('categoryId')}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                >
+                  <option value="">None</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">Content</label>
                 <textarea
-                  value={formData.content}
-                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                  {...register('content', { required: 'Content is required' })}
                   rows={8}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  required
                 />
+                {errors.content && (
+                  <p className="mt-1 text-sm text-red-600">{errors.content.message}</p>
+                )}
               </div>
 
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   id="published"
-                  checked={formData.published}
-                  onChange={(e) => setFormData({ ...formData, published: e.target.checked })}
+                  {...register('published')}
                   className="w-4 h-4"
                 />
                 <label htmlFor="published" className="text-sm">Publish immediately</label>
@@ -220,7 +279,7 @@ export default function DashboardPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={resetForm}
+                  onClick={handleCloseForm}
                   className="px-4 py-2 border rounded-lg hover:bg-gray-50 transition"
                 >
                   Cancel
@@ -231,7 +290,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Posts List */}
       {loading ? (
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto" />
@@ -247,6 +305,7 @@ export default function DashboardPage() {
             <thead className="bg-gray-50 border-b">
               <tr>
                 <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Title</th>
+                <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Category</th>
                 <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Status</th>
                 <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Date</th>
                 <th className="text-right px-6 py-3 text-sm font-medium text-gray-500">Actions</th>
@@ -258,6 +317,15 @@ export default function DashboardPage() {
                   <td className="px-6 py-4">
                     <div className="font-medium">{post.title}</div>
                     <div className="text-sm text-gray-500">/blog/{post.slug}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    {post.category ? (
+                      <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">
+                        {post.category.name}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-sm">None</span>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <span
