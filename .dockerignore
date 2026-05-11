@@ -1,0 +1,54 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build outputs
+.next
+out
+build
+dist
+
+# Database (will use volume)
+*.db
+*.db-journal
+
+# Development files
+.env.local
+.env.development
+.env.development.local
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+docs
+
+# Tests
+coverage
+.nyc_output
+__tests__
+*.test.*
+*.spec.*
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
